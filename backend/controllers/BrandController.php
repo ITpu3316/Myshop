@@ -24,7 +24,7 @@ class BrandController extends Controller
     public function actionIndex()
     {
         //获取数据
-        $query=Brand::find();
+        $query=Brand::find()->where(['del'=>1]);
         //计算数的总条据数  每一页显示的条数   当前页
         $count=$query->count();
         //c创建每一页的对象
@@ -146,10 +146,9 @@ class BrandController extends Controller
      */
     public function actionDel($id)
     {
-        if ($brands=Brand::findOne($id)->delete()) {
-            //跳转页面
-            return $this->redirect(['index']);
-        }
+        Brand::updateAll(['del'=>0],['id'=>$id]);
+
+        return $this->redirect(['index']);
 
     }
 
