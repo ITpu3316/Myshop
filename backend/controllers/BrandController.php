@@ -152,4 +152,35 @@ class BrandController extends Controller
 
     }
 
+//    public function actionUpload()
+//    {
+//        var_dump($_FILES);exit;
+//        //得到上传文件的对象
+//        $file=UploadedFile::getInstanceByName("file");
+//        if (file) {
+//            //获取路径
+//            $path="images/".time().".".$file->extension;
+//            //移动图片
+//            if ($file->saveAs($path,false)) {
+//                $result=[
+//                    'code'=>0,
+//                    'url'=>'/'.$path,
+//                    'attachment'=>$path,
+//
+//                ];
+//                return json_encode($result);
+//            }
+//
+//        }
+//        //{"code": 0, "url": "http://domain/图片地址", "attachment": "图片地址"}
+//        $result=[
+//            'code'=>0,
+//            'url'=>'https://www.baidu.com/img/bd_logo1.png',
+//            'attachment'=>'https://www.baidu.com/img/bd_logo1.png'
+//
+//        ];
+//        return json_encode($result);
+//
+//    }
+
 }
