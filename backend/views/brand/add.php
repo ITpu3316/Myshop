@@ -2,7 +2,7 @@
 $form=\yii\bootstrap\ActiveForm::begin();
 
 echo  $form->field($model,'name');
-echo  $form->field($model,'img')->fileInput();;
+echo  $form->field($model,'logo')->widget(\manks\FileInput::className(),[]);
 echo  $form->field($model,'sort');
 echo  $form->field($model,'status')->inline()->radioList(\backend\models\Brand::$sexs);
 echo  $form->field($model,'intro')->textarea();

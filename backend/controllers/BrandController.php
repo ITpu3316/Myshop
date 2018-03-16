@@ -11,6 +11,7 @@ namespace backend\controllers;
 
 use backend\models\Brand;
 use yii\data\Pagination;
+use yii\helpers\Json;
 use yii\web\Controller;
 use yii\web\Request;
 use yii\web\UploadedFile;
@@ -52,24 +53,24 @@ class BrandController extends Controller
     //创建post传值
     if ($request->isPost) {
         //得到上传图片对象
-        $model->img=UploadedFile::getInstance($model,'img');
+//        $model->img=UploadedFile::getInstance($model,'img');
 //            var_dump($model->img);exit;
         //先定义一个空对象
-        $img="";
+//        $img="";
         //判断上传的对象是否为空
-        if ($model->img!==null) {
-            //然后定义上传文件的路径
-            $img="images/".time().".".$model->img->extension;
-
-            //把文件移动到backend/web/images下
-            $model->img->saveAs($img,false);
-        }
+//        if ($model->img!==null) {
+//            //然后定义上传文件的路径
+//            $img="images/".time().".".$model->img->extension;
+//
+//            //把文件移动到backend/web/images下
+//            $model->img->saveAs($img,false);
+//        }
         //绑定数据
         $model->load($request->post());
         //后台验证
         if ($model->validate()) {
             //上传临时文件到数据库
-            $model->logo=$img;
+//            $model->logo=$img;
             //保存数据
             if ($model->save()) {
                 //提示信息
@@ -103,23 +104,23 @@ class BrandController extends Controller
         //创建post传值
         if ($request->isPost) {
             //得到上传图片对象
-            $model->img=UploadedFile::getInstance($model,'img');
+//            $model->img=UploadedFile::getInstance($model,'img');
 //            var_dump($model->img);exit;
             //先定义一个空对象
-            $img="";
+//            $img="";
             //判断上传的对象是否为空
-            if ($model->img!==null) {
-                //然后定义上传文件的路径
-                $img="images/".time().".".$model->img->extension;
-                //把文件移动到backend/web/images下
-                $model->img->saveAs($img,false);
-            }
+//            if ($model->img!==null) {
+//                //然后定义上传文件的路径
+//                $img="images/".time().".".$model->img->extension;
+//                //把文件移动到backend/web/images下
+//                $model->img->saveAs($img,false);
+//            }
             //绑定数据
             $model->load($request->post());
             //后台验证
             if ($model->validate()) {
                 //上传临时文件到数据库
-                $model->logo=$img?:$model->logo;
+//                $model->logo=$img?:$model->logo;
                 //保存数据
                 if ($model->save()) {
                     //提示信息
@@ -152,35 +153,42 @@ class BrandController extends Controller
 
     }
 
-//    public function actionUpload()
-//    {
-//        var_dump($_FILES);exit;
-//        //得到上传文件的对象
-//        $file=UploadedFile::getInstanceByName("file");
-//        if (file) {
-//            //获取路径
-//            $path="images/".time().".".$file->extension;
-//            //移动图片
-//            if ($file->saveAs($path,false)) {
-//                $result=[
-//                    'code'=>0,
-//                    'url'=>'/'.$path,
-//                    'attachment'=>$path,
-//
-//                ];
-//                return json_encode($result);
-//            }
-//
-//        }
-//        //{"code": 0, "url": "http://domain/图片地址", "attachment": "图片地址"}
-//        $result=[
-//            'code'=>0,
-//            'url'=>'https://www.baidu.com/img/bd_logo1.png',
-//            'attachment'=>'https://www.baidu.com/img/bd_logo1.png'
-//
-//        ];
-//        return json_encode($result);
-//
-//    }
+    /**
+     * 品牌头像完善
+     * @return string
+     */
+    public function actionUpload()
+    {
+//        var_dump($_FILES);
+        //得到上传文件的对象
+        $files=UploadedFile::getInstanceByName("file");
+//        var_dump($files);
+        if ($files!==null) {
+            //获取路径
+            $path="images/".time().".".$files->extension;
+            //移动图片
+            if ($files->saveAs($path,false)) {
+                //{"code": 0, "url": "http://domain/图片地址", "attachment": "图片地址"}
+                $result=[
+                    'code'=>0,
+                    'url'=>'/'.$path,//预览地址
+                    'attachment'=>$path,//文件上传后的地址
+
+                ];
+                //返回json对象
+                return Json::encode($result);
+            }
+
+        }else {
+            //发生错误时
+            $results = [
+                'code' => 1,
+                'msg' => "error",
+            ];
+            //返回一个json对象
+            return Json::encode($results);
+        }
+
+    }
 
 }

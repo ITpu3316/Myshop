@@ -17,7 +17,6 @@ class Brand extends ActiveRecord
 {
 
     public static $sexs=[1=>'上架',2=>'下架'];
-    public $img;
     /**
      * @inheritdoc
      */
@@ -25,8 +24,8 @@ class Brand extends ActiveRecord
     public function rules()
     {
         return [
-            [['name', 'sort','status','intro'], 'required'],
-            [['img'],'safe'],
+            [['name', 'sort','status','intro','logo'], 'required'],
+//            [['img'],'safe'],
 //            [['img'],'image','extensions' =>['gif','jpg','png'],"skipOnEmpty" => true],
 
         ];
@@ -37,7 +36,7 @@ class Brand extends ActiveRecord
         return [
             'id' => 'ID',
             'name' => '品牌名称',
-            'img' => '品牌头像',
+            'logo' => '品牌头像',
             'sort' => '品牌排序',
             'status' => '品牌状态',
             'intro'=>'品牌简介'
