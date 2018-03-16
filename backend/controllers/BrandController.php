@@ -52,25 +52,10 @@ class BrandController extends Controller
     $request=new Request();
     //创建post传值
     if ($request->isPost) {
-        //得到上传图片对象
-//        $model->img=UploadedFile::getInstance($model,'img');
-//            var_dump($model->img);exit;
-        //先定义一个空对象
-//        $img="";
-        //判断上传的对象是否为空
-//        if ($model->img!==null) {
-//            //然后定义上传文件的路径
-//            $img="images/".time().".".$model->img->extension;
-//
-//            //把文件移动到backend/web/images下
-//            $model->img->saveAs($img,false);
-//        }
         //绑定数据
         $model->load($request->post());
         //后台验证
         if ($model->validate()) {
-            //上传临时文件到数据库
-//            $model->logo=$img;
             //保存数据
             if ($model->save()) {
                 //提示信息
