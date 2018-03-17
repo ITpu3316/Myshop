@@ -9,6 +9,7 @@
         <td>文章简介</td>
         <td>文章状态</td>
         <td>文章排序</td>
+<!--        <td>文章内容</td>-->
         <td>录入时间</td>
         <td>修改时间</td>
         <td>操作</td>
@@ -22,16 +23,18 @@
             <td>
                 <?php
                 if($article->status){
-
-
                     echo \yii\bootstrap\Html::a("",[' ','id'=>$article->id],['class'=>'glyphicon glyphicon-ok']);
-
                 }else{
                     echo \yii\bootstrap\Html::a("",[' ','id'=>$article->id],['class'=>'glyphicon glyphicon-remove']);
                 }
-
                 ?></td>
             <td><?=$article->sort?></td>
+<!--            <td>-->
+<!--                --><?php
+//                    echo \yii\bootstrap\Html::a("",['content-list','id'=>$article->id],['class'=>'glyphicon glyphicon-eye-open','data-toggle'=>"modal" ,'data-target'=>"#hide"]);
+//
+//                ?>
+<!--            </td>-->
             <td><?=date("Y-m-d H:i:s",$article->create_time)?></td>
             <td><?=date("Y-m-d H:i:s",$article->upload_time)?></td>
             <td>
@@ -41,4 +44,20 @@
         </tr>
     <?php endforeach;?>
 </table>
+<!--<div class="modal fade" id="hide" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">-->
+<!--    <div class="modal-dialog" role="document">-->
+<!--        <div class="modal-content">-->
+<!--            <div class="modal-header">-->
+<!--                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>-->
+<!--                <h4 class="modal-title" id="myModalLabel">文章内容</h4>-->
+<!--            </div>-->
+<!--            <div class="modal-body">-->
+<!--                --><?php
+//                    echo $article->contents->detail;
+//                ?>
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+<!--</div>-->
+
 <?=\yii\widgets\LinkPager::widget(['pagination' => $page])?>

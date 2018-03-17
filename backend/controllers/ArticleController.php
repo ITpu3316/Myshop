@@ -20,6 +20,15 @@ use yii\web\Request;
 
 class ArticleController extends Controller
 {
+    public function actions()
+    {
+        return [
+            'upload' => [
+                'class' => 'kucha\ueditor\UEditorAction',
+            ]
+        ];
+    }
+
     /**
      * 展示文章列表
      * @return string
@@ -169,5 +178,19 @@ class ArticleController extends Controller
     }
 
 
+    /**
+     * 按照一条ID获取数据
+     * @param $id 文章ID
+     * @return string
+     */
+//    public function actionContentList($id)
+//    {
+//        //获取一条数据
+//        $contents=ArticleContent::findOne($id);
+//        //传递数据
+//        return $this->render('index',compact('contents'));
+//
+//
+//    }
 
 }
