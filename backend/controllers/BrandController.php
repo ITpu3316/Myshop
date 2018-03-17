@@ -15,6 +15,7 @@ use yii\helpers\Json;
 use yii\web\Controller;
 use yii\web\Request;
 use yii\web\UploadedFile;
+use crazyfd\qiniu\Qiniu;
 
 class BrandController extends Controller
 {
@@ -174,6 +175,36 @@ class BrandController extends Controller
             return Json::encode($results);
         }
 
+    }
+
+    /**
+     * 品牌头像完善
+     * @return string
+     */
+    public function actionQiniuUpload()
+    {
+//        var_dump($_FILES['file']);exit;
+        $ak = 'g55WlYZmAcfjlQDw4CgilVkj-JiDkt6I7RtcPQM9';//七牛ID
+        $sk = '2XVES6fEUq2aK14htnOjSVf-7cOFd-2RHfknBjcy';//七牛密钥
+        $domain = 'http://p5obj1i27.bkt.clouddn.com/';//存储对象
+        $bucket = 'php1108';//空间名称
+        $zone = 'south_china';//时区
+        //创建一个七牛云对象
+        $qiniu = new Qiniu($ak, $sk,$domain, $bucket,$zone);
+        $key = time();
+        //拼接路径
+        $key =$key. strtolower(strrchr($_FILES['file']['name'], '.'));
+        //利用七牛云上传对象
+        $qiniu->uploadFile($_FILES['file']['tmp_name'],$key);
+        $url = $qiniu->getLink($key);
+        $result=[
+            'code'=>0,
+            'url'=>$url,//预览地址
+            'attachment'=>$url,//文件上传后的地址
+
+        ];
+        //返回json对象
+        return Json::encode($result);
     }
 
 }

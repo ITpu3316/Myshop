@@ -4,7 +4,7 @@ return [
     'domain' => 'http://admin.myshop.com/',
     'webuploader' => [
         // 后端处理图片的地址，value 是相对的地址
-        'uploadUrl' => '/brand/upload',
+        'uploadUrl' => '/brand/qiniu-upload',
         // 多文件分隔符
         'delimiter' => ',',
         // 基本配置

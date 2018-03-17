@@ -12,6 +12,7 @@ namespace backend\controllers;
 use backend\models\Article;
 use backend\models\ArticleCate;
 use backend\models\ArticleContent;
+use function Sodium\compare;
 use yii\data\Pagination;
 use yii\helpers\ArrayHelper;
 use yii\web\Controller;
@@ -95,7 +96,7 @@ class ArticleController extends Controller
     }
 
     /**
-     * 文章添加
+     * 文章编辑
      * @return string
      *
      */
@@ -129,7 +130,7 @@ class ArticleController extends Controller
                     //保存数据
                     if ($content->save()) {
                         //提示信息
-                        \Yii::$app->session->setFlash('success','恭喜你！添加成功');
+                        \Yii::$app->session->setFlash('success','恭喜你！编辑成功');
                         //跳转页面
                         return $this->redirect(['index']);
                     }
@@ -166,5 +167,7 @@ class ArticleController extends Controller
         }
 
     }
+
+
 
 }
