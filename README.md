@@ -926,6 +926,408 @@ class ArticleContent extends \yii\db\ActiveRecord
 在这里内容不需要CURD
 只需在文章中显示
 ```
+# 6.商品管理模块
+## 6.1.需求
+1. 保存每天创建多少商品,创建商品的时候,更新当天创建商品数量
+### 分析所得的数据结构
+
+```
+商品分类(category)
+	id(商品)
+	树型(tree)
+	左值(left)
+	右值(right)
+	商品名称(name)
+	父级ID(parent_id)
+	简介(intro)
+	深度(depath)
+```
+
+1. 商品增删改查
+### 在模型中
+
+```
+<?php
+
+namespace backend\models;
+
+use backend\components\MenuQuery;
+use creocoder\nestedsets\NestedSetsBehavior;
+use Yii;
+
+/**
+ * This is the model class for table "category".
+ *
+ * @property int $id
+ * @property int $tree
+ * @property int $lft
+ * @property int $rgt
+ * @property int $depth 深度
+ * @property string $name 分类名称
+ * @property string $intro 简介
+ * @property int $parent_id 父类ID
+ */
+class Category extends \yii\db\ActiveRecord
+{
+    public function behaviors() {
+        return [
+            'tree' => [
+                'class' => NestedSetsBehavior::className(),
+                'treeAttribute' => 'tree',
+                'leftAttribute' => 'lft',
+                'rightAttribute' => 'rgt',
+                'depthAttribute' => 'depth',
+            ],
+        ];
+    }
+
+    public function transactions()
+    {
+        return [
+            self::SCENARIO_DEFAULT => self::OP_ALL,
+        ];
+    }
+
+    public static function find()
+    {
+        return new MenuQuery(get_called_class());
+    }
+    /**
+     * @inheritdoc
+     */
+    public function rules()
+    {
+        return [
+            [[ 'name','parent_id'], 'required'],
+            [['intro'],'safe']
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => '商品ID',
+            'depth' => '深度',
+            'name' => '商品名称',
+            'intro' => '简介',
+            'parent_id' => '父类ID',
+        ];
+    }
+}
+
+```
+### 在controller中需要分析
+
+```
+<?php
+
+namespace backend\controllers;
+
+use backend\models\Category;
+use yii\data\ActiveDataProvider;
+use yii\helpers\Json;
+use yii\web\Request;
+
+class CategoryController extends \yii\web\Controller
+{
+    /**
+     * 显示商品分类数据
+     * @return string
+     */
+//    public function actionIndex()
+//    {
+//        //获取所有的数据
+//        $categorys=Category::find()->all();
+//        //载入视图
+//        return $this->render('index',compact('categorys'));
+//    }
+    /**
+     * 展示树形列表
+     * @return mixed
+     */
+    public function actionIndex()
+    {
+        $query = Category::find();
+        $date = new ActiveDataProvider([
+            'query' => $query,
+            'pagination' => false
+        ]);
+        return $this->render('indexs',compact('date'));
+    }
+
+    /**
+     * 添加商品分类(树形结构)
+     *
+     * @return string|\yii\web\Response
+     */
+    public function actionAdd(){
+        //获取你所有的数据
+        $cate=new Category();
+
+        //查询所有的分类数据
+        $cates=Category::find()->asArray()->all();
+        //伪造一个一级分类数据 的数据
+        $cates[]=['id'=>0,'name'=>'一级分类','parent_id'=>0];
+
+        //转换成json对象
+        $cateJson=Json::encode($cates);
+
+//        var_dump($cateJson);exit();
+        //判断post传值
+        $request=new Request();
+        if ($request->isPost) {
+            //数据绑定
+            $cate->load($request->post());
+            //后台验证
+            if ($cate->validate()) {
+                //判断parent_id=0时,添加一级分类
+                if ($cate->parent_id==0) {
+                    //创建一个一级分类
+                    $cate->makeRoot();
+                    //提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你'.$cate->name.'!添加一级分类成功');
+                    //刷新页面
+                    return $this->refresh();
+
+                }else{
+                    //添加一个子分类
+                    //找到一个父级分类对象
+                    $cateParent=Category::findOne($cate->parent_id);
+                    //把新的分类添加到父级中
+                    $cate->prependTo($cateParent);
+                    //提示信息
+                    \Yii::$app->session->setFlash('success',"恭喜你!创建{$cateParent->name}分类的子分类:".$cate->name." 成功");
+                    //刷新页面
+                    return $this->refresh();
+                }
+            }else{
+                //TODO：打印错误
+                var_dump($cate->getErrors());
+            }
+
+
+        }
+        //载入视图
+        return $this->render('add',compact('cate','cateJson'));
+
+    }
+
+
+    /**
+     * 删除
+     * @param $id
+     */
+    public function actionDelete($id){
+        $cate=Category::findOne($id);
+
+
+    }
+
+
+    /**
+     * 编辑商品分类
+     * @param $id 商品ID
+     * @return string|\yii\web\Response
+     *
+     */
+    public function actionUpdate($id)
+    {
+        //创建一个model对象
+        $model=Category::findOne($id);
+        //创建一个requerst对象
+        $request=new Request();
+        //创建post传值
+        if ($request->isPost) {
+            //绑定数据
+            $model->load($request->post());
+            //后台验证
+            if ($model->validate()) {
+                //保存数据
+                if ($model->save()) {
+                    //提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你！编辑成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+                }
+            }else{
+                //打印错误
+                var_dump($model->getErrors());exit;
+            }
+
+        }
+        //引入视图
+        return $this->render('update',compact('model'));
+
+
+    }
+
+    /**
+     * 调试树形结构分类
+     */
+    public function actionTest(){
+        //创建一个一级分类
+//        $cate=new Category();
+//        $cate->name="电脑";
+//        //创建一个一级分类
+//        $cate->makeRoot();
+        //添加一个子分类
+        //找到一个父级分类对象
+        $cateParent=Category::findOne(1);
+        //创建一个新的 分类
+        $cate=new Category();
+        $cate->name="电视";
+        $cate->parent_id=1;
+        //把新的分类添加到父级中
+        $cate->prependTo($cateParent);
+        var_dump($cate->errors);
+
+    }
+
+}
+
+```
+### 这里的删除或编辑在第四天进行详细的操作
+
+### 视图中
+
+```
+views
+  category
+    add.php
+    indexs.php
+```
+### add.php
+
+```
+<?php
+/**
+ * Created by PhpStorm.
+ * User: Administrator
+ * Date: 2018/3/18 0018
+ * Time: 15:29
+ */
+
+$form=\yii\bootstrap\ActiveForm::begin();
+
+echo $form->field($cate,'name');
+echo $form->field($cate,'parent_id')->hiddenInput(['value'=>0]);
+echo \liyuze\ztree\ZTree::widget([
+    'setting' => '{
+			data: {
+				simpleData: {
+					enable: true,
+					pIdKey:"parent_id",
+				} 
+			},
+			
+			callback: {
+				onClick: onClick,
+			}
+           
+		}',
+    'nodes' =>
+        $cateJson,
+]);
+echo $form->field($cate,'intro')->textarea();
+echo \yii\bootstrap\Html::submitButton('提交',['class'=>'btn btn-info']);
+
+\yii\bootstrap\ActiveForm::end();?>
+
+<script>
+	function onClick(e,treeId, treeNode) {
+	    //找到父类ID
+        $("#category-parent_id").val(treeNode.id);
+
+        console.log(treeNode.id);
+//        var zTree = $.fn.zTree.getZTreeObj("treeDemo");
+//        zTree.expandNode(treeNode);
+    }
+</script>
+
+<?php
+//定义json代码快
+$js=<<<EOF
+    var treeObj=$.fn.zTree.getZTreeObj("w1");
+    treeObj.expandAll(true);
+EOF;
+$this->registerJs($js);
+?>
+
+```
+### indexs.php
+
+
+```
+<Himl><h1>商品分类列表</h1></Himl><br>
+<a href='<?=\yii\helpers\Url::to(['add'])?>' class="glyphicon glyphicon-plus"></a>
+<table class="table">
+    <tr>
+        <td>
+            <?= \leandrogehlen\treegrid\TreeGrid::widget([
+                'dataProvider' => $date,
+                'keyColumnName' => 'id',
+                'parentColumnName' => 'parent_id',
+                'parentRootValue' => '0', //找到第一个父类的值
+                'pluginOptions' => [
+                    'initialState' => 'collapsed',
+                ],
+                'columns' => [
+                    'name',
+                    'id',
+                    'parent_id',
+                    'intro',
+                    ['class' => 'yii\grid\ActionColumn']
+                ]
+            ]); ?>
+        </td>
+    </tr>
+
+</table>
+
+
+```
+
+1. 商品列表页可以进行搜索(商品名,商品状态,售价范围 
+1. 新增商品自动生成sn,规则为年月日+今天的第几个商品,比如201704010001 
+1. 商品详情使用ueditor插件 
+
+## 6.2.要点难点及解决方案
+1. 商品分类只能选择第三级分类
+1. 品牌使用下拉选择
+1. 商品相册,添加完商品后,跳转到添加商品相册页面,允许多图片上传
+1. 创建goods_day_count数据迁移时,如何创建date类型主键
+
+## 5.商品介绍使用
+
+```
+UEditor(https://github.com/BigKuCha/yii2-ueditor-widget)
+```
+## 这里我们需要使用的一个插件
+
+```
+https://packagist.org/packages/leandrogehlen/yii2-treegrid
+```
+## 此时这个插件里有许多坑
+### 今天解决的是:
+    
+```
+修改编辑和删除时获取的商品ID不正确。
+```
+
+### 方法:
+    
+```
+在文件yii\grid\ActionColumn配置文件:
+protected function renderDataCellContent($model, $key, $index)
+    {
+    添加一句:
+        $key=$model->id;//修改正确的Id
+        ...
+    }
+```
 
 
 
