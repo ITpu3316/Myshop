@@ -41,7 +41,7 @@ class ArticleController extends Controller
         $count=$query->count();
         //c创建每一页的对象
         $page=new Pagination([
-            'pageSize' => 2,//每页显示条数
+            'pageSize' => 3,//每页显示条数
             'totalCount' => $count,//总条数
         ]);
         //创建一个model对象
@@ -114,7 +114,7 @@ class ArticleController extends Controller
         //创建一个model对象
         $model=Article::findOne($id);
         //创建一个文章内容对象
-        $content=new ArticleContent();
+        $content=ArticleContent::findOne(['article_id'=>$id]);
         //创建一个得到所有分类的对象
         $cates=ArticleCate::find()->asArray()->all();
         //把二维数组转换成一维数组
@@ -131,7 +131,7 @@ class ArticleController extends Controller
                 //保存数据
                 if ($model->save()) {
                     //保存文章内容
-                    $content->load($request->post());
+//                    $content->load($request->post());
 //                    var_dump($add);exit;
                     //添加文章ID
                     $content->article_id=$model->id;
@@ -167,7 +167,7 @@ class ArticleController extends Controller
     public function actionDel($id)
     {
         //删除数据
-        if ($article=Article::findOne($id)->delete()) {
+        if (Article::findOne($id)->delete() && ArticleContent::findOne(['article_id'=>$id])->delete()) {
             //提示信息
             \Yii::$app->session->setFlash('danger','恭喜你！删除成功');
             //跳转页面
@@ -176,21 +176,5 @@ class ArticleController extends Controller
         }
 
     }
-
-
-    /**
-     * 按照一条ID获取数据
-     * @param $id 文章ID
-     * @return string
-     */
-//    public function actionContentList($id)
-//    {
-//        //获取一条数据
-//        $contents=ArticleContent::findOne($id);
-//        //传递数据
-//        return $this->render('index',compact('contents'));
-//
-//
-//    }
 
 }

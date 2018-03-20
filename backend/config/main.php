@@ -7,12 +7,21 @@ $params = array_merge(
 );
 
 return [
+    'name'=>'哈哈哈哈',
     'id' => 'app-backend',
     'basePath' => dirname(__DIR__),
     'controllerNamespace' => 'backend\controllers',
     'bootstrap' => ['log'],
     'modules' => [],
     'components' => [
+//        'view' => [
+//            'theme' => [
+//                'pathMap' => [
+//                    '@app/views' => '@vendor/dmstr/yii2-adminlte-asset/example-views/yiisoft/yii2-app'
+//                ],
+//            ],
+//        ],
+
         'request' => [
             'csrfParam' => '_csrf-backend',
         ],

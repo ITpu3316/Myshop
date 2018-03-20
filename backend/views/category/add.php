@@ -9,7 +9,7 @@
 $form=\yii\bootstrap\ActiveForm::begin();
 
 echo $form->field($cate,'name');
-echo $form->field($cate,'parent_id')->hiddenInput(['value'=>0]);
+echo $form->field($cate,'parent_id')->textInput(['value'=>0]);
 echo \liyuze\ztree\ZTree::widget([
     'setting' => '{
 			data: {
@@ -45,9 +45,18 @@ echo \yii\bootstrap\Html::submitButton('提交',['class'=>'btn btn-info']);
 
 <?php
 //定义json代码快
-$js=<<<EOF
+$js=<<<JS
+    //得到树形结构的对象
     var treeObj=$.fn.zTree.getZTreeObj("w1");
+    //得到当前的对象
+    var node = treeObj.getNodeByParam("id", "$cate->parent_id", null);
+    //选中当前的节点
+    treeObj.selectNode(node);
+    //设置父类id的值
+    $("#category-parent_id").val($cate->parent_id);
+    //调用展开方法
     treeObj.expandAll(true);
-EOF;
-$this->registerJs($js);
+JS;
+    //追加代码块到jQuery之后
+    $this->registerJs($js);
 ?>
