@@ -33,6 +33,14 @@
 
                     ['label' => '菜单', 'options' => ['class' => 'header']],
                     [
+                        'label' => '用户管理',
+                        'icon' => 'shopping-bag',
+                        'url' => '#',
+                        'items' => [
+                            ['label' => '用户列表', 'icon' => 'bars', 'url' => ['/admin/index'],],
+                        ],
+                    ],
+                    [
                         'label' => '商品',
                         'icon' => 'shopping-bag',
                         'url' => '#',
@@ -71,6 +79,7 @@
                             ['label' => '文章添加', 'icon' => 'cloud-download', 'url' => ['/article/add'],],
                         ],
                     ],
+
                 ],
             ]
         ) ?>

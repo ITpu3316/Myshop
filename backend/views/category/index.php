@@ -1,5 +1,6 @@
 
 <Himl><h1>商品分类列表</h1></Himl><br>
+<a href='<?=\yii\helpers\Url::to(['add'])?>' class="btn btn-info glyphicon glyphicon-plus"></a>
 <table class="table">
     <tr>
         <td>商品ID</td>

@@ -1328,6 +1328,900 @@ protected function renderDataCellContent($model, $key, $index)
         ...
     }
 ```
+# 6.商品管理模块
+## 6.1.需求
+### 1.保存每天创建多少商品,创建商品的时候,更新当天创建商品数量
+### 需求建立对应关系
 
+```
+商品管理（goods）
+	id
+	商品名称(name)
+	商品货号（sn）
+	商品LOGO（goods_logo_id）
+	商品详情图片（goods_print_id）
+	商品分类id(goods_category_id)
+	商品品牌（brand_id）
+	商品详情（goods_intro_id）
+	市场价格（market_price）
+	本店价格（goods_price）
+	状态（status）
+	排序（sort）
+	创建时间（create_time）
+```
+
+2.商品增删改查
+
+```
+## 商品
+<?php
+
+namespace backend\controllers;
+
+use backend\models\Brand;
+use backend\models\Category;
+use backend\models\Goods;
+use backend\models\GoodsIntro;
+use backend\models\GoodsLogo;
+use backend\models\GoodsPrint;
+use crazyfd\qiniu\Qiniu;
+use yii\data\Pagination;
+use yii\helpers\ArrayHelper;
+use yii\helpers\Json;
+use yii\web\Request;
+use yii\web\UploadedFile;
+
+class GoodsController extends \yii\web\Controller
+{
+
+    public function actions()
+    {
+        return [
+            'upload' => [
+                'class' => 'kucha\ueditor\UEditorAction',
+            ]
+        ];
+    }
+    /**
+     * 显示商品列表
+     * @return string
+     */
+    public function actionIndex()
+    {
+        //获取数据
+        $query=Goods::find();
+        //创建一个用DB类来查询所有状态为上架和下架的数据
+        $minPrice=\Yii::$app->request->get('minPrice');
+        $maxPrice=\Yii::$app->request->get('maxPrice');
+        $keyWord=\Yii::$app->request->get('keyword');
+        $status=\Yii::$app->request->get('status');
+
+        //查询最小值
+        if($minPrice){
+            $query->andWhere("shop_price>={$minPrice}");
+        }
+
+        //查询最大值
+        if($maxPrice){
+            $query->andWhere("shop_price<={$maxPrice}");
+        }
+        //查询货号或者商品名称
+        if($keyWord !==""){
+            $query->andWhere("name like '%{$keyWord}%' or sn like '%{$keyWord}%'");
+        }
+
+        /**
+         * 查询判断商品状态 在这里说明Http协议传递的参数都是字符串
+         * 因此这里的0或1要加双引号
+         */
+        if($status==="0" || $status==="1"){
+            $query->andWhere(['status'=>$status]);
+
+        }
+
+
+        //计算数的总条据数  每一页显示的条数   当前页
+        $count=$query->count();
+        //c创建每一页的对象
+        $page=new Pagination([
+            'pageSize' => 3,//每页显示条数
+            'totalCount' => $count,//总条数
+        ]);
+        //创建一个model对象
+        $goods=$query->offset($page->offset)->limit($page->limit)->all();
+        //引入视图
+        return $this->render('index',compact('goods','page'));
+
+    }
+
+    /**
+     * 商品添加
+     * @return string|\yii\web\Response
+     */
+    public function actionAdd()
+    {
+        //创建一个model对象
+        $model=new Goods();
+        //创建一个所有Actrice商品分类数据的对象
+        $cates=Category::find()->orderBy('tree,lft')->all();
+        //把得到的数据二维数组转换成一维数组
+        $cateArr=ArrayHelper::map($cates,'id','nameText');
+        //创建一个所有brand商品品牌数据的对象
+        $brands=Brand::find()->asArray()->all();
+        $brandArr=ArrayHelper::map($brands,'id','name');
+
+        //创建一个添加商品内容的对象
+        $content=new GoodsIntro();
+
+        //创建一个requerst对象
+        $request=new Request();
+        //创建post传值
+        if ($request->isPost) {
+            //绑定数据
+            $model->load($request->post());
+            //后台验证
+            if ($model->validate()) {
+
+//                var_dump($model->images);exit();
+                //书写自动生成货号的对象
+                //判断sn是不是有值
+                if(!$model->sn){
+                    //自动生成年月日
+                    $dayTime=strtotime(date('Ymd'));//当前时间的时间戳
+                    //找到当日添加的数据
+                    $counts=Goods::find()->where(['>','create_time',$dayTime])->count();
+                    //在编号的后面自动生成添加00001
+                    $counts = $counts + 1;
+                    $countStr="0000".$counts;
+                    //获取后面的五位数
+                    $countStr=substr($countStr,-5);
+
+                    //把生成的时间戳放到货号中
+                    $model->sn=date('Ymd').$countStr;
+
+//                    var_dump($model->sn);exit();
+
+                }
+
+                //保存数据
+                if ($model->save()) {
+                    //保存文章内容
+                    $content->load($request->post());
+//                    var_dump($add);exit;
+                    //添加文章ID
+                    $content->goods_id=$model->id;
+
+//                    var_dump($model->images);exit();
+                    //多图操作
+                    //循环遍历上传的图像
+//                    var_dump($model->images);exit();
+                    foreach ($model->images as $ima){
+//                        var_dump($ima);exit();
+                        //创建一个新的对象
+                        $logo=new GoodsLogo();
+                        //给对象的属性赋值
+                        $logo->goods_id=$model->id;
+                        $logo->path=$ima;
+                        $logo->save();
+
+                    }
+
+                    //保存数据
+                    if ($content->save()) {
+//                        var_dump($model->images);exit();
+                        //提示信息
+                        \Yii::$app->session->setFlash('success','恭喜你！添加成功');
+                        //跳转页面
+                        return $this->redirect(['index']);
+                    }
+
+                }
+            }else{
+                //打印错误
+                var_dump($model->getErrors());exit;
+            }
+
+        }
+        //引入视图
+        return $this->render('add',compact('model','cateArr','brandArr','content'));
+
+    }
+    /**
+     * 商品编辑
+     * @return string|\yii\web\Response
+     */
+    public function actionEdit($id)
+    {
+        //创建一个model对象
+        $model=Goods::findOne(['id'=>$id]);
+        //创建一个所有Actrice商品分类数据的对象
+        $cates=Category::find()->orderBy('tree,lft')->all();
+        //把得到的数据二维数组转换成一维数组
+        $cateArr=ArrayHelper::map($cates,'id','nameText');
+        //创建一个所有brand商品品牌数据的对象
+        $brands=Brand::find()->asArray()->all();
+        $brandArr=ArrayHelper::map($brands,'id','name');
+
+        //创建一个添加商品内容的对象
+        $content=GoodsIntro::findOne(['goods_id'=>$id]);
+
+        //创建一个requerst对象
+        $request=new Request();
+        //创建post传值
+        if ($request->isPost) {
+            //绑定数据
+            $model->load($request->post());
+            //后台验证
+            if ($model->validate()) {
+//                var_dump($model->images);exit();
+                //书写自动生成货号的对象
+                //判断sn是不是有值
+                if($model->sn!==null){
+                    //自动生成年月日
+                    $dayTime=strtotime(date('Ymd'));//当前时间的时间戳
+                    //找到当日添加的数据
+                    $counts=Goods::find()->where(['>','create_time',$dayTime])->count();
+                    //在编号的后面自动生成添加00001
+                    $counts+=1;
+                    $countStr="0000".$counts;
+                    //获取后面的五位数
+                    $countStr=substr($countStr,-5);
+                    //把生成的时间戳放到货号中
+                    $model->sn=date('Ymd').$countStr;
+//                    var_dump($model->sn);exit();
+                }
+                //保存数据
+                if ($model->save()) {
+                    //保存文章内容
+                    $content->load($request->post());
+                    //添加文章ID
+                    $content->goods_id=$model->id;
+                    //多图操作
+                    //在编辑之前要把之前所有的图片删除
+                    GoodsLogo::deleteAll(['goods_id'=>$id]);
+                    //循环遍历上传的图像
+//                    var_dump($model->images);exit();
+                    foreach ($model->images as $ima){
+//                        var_dump($ima);exit();
+                        //创建一个新的对象
+                        $logo=new GoodsLogo();
+                        //给对象的属性赋值
+                        $logo->goods_id=$model->id;
+                        $logo->path=$ima;
+                        $logo->save();
+                    }
+                    //保存数据
+                    if ($content->save()) {
+//                        var_dump($model->images);exit();
+                        //提示信息
+                        \Yii::$app->session->setFlash('success','恭喜你！修改成功');
+                        //跳转页面
+                        return $this->redirect(['index']);
+                    }
+                }
+            }else{
+                //打印错误
+                var_dump($model->getErrors());exit;
+            }
+        }
+        //从数据库获取数据图片信息
+        $images=GoodsLogo::find()->where(['goods_id'=>$id])->asArray()->all();
+        //var_dump($iamges);exit();
+        //把二维数组转换成制定是一维数组
+        $imag=array_column($images,'path');
+//        var_dump($images);exit();
+        //给属性赋值
+        $model->images= $imag;
+
+        //引入视图
+        return $this->render('add',compact('model','cateArr','brandArr','content'));
+
+    }
+
+
+    /**
+     * s删除商品数据
+     * @param $id商品ID
+     */
+    public function actionDel($id){
+
+        //删除数据
+        if(Goods::findOne($id)->delete() && GoodsLogo::findOne(['goods_id'=>$id])->delete() && GoodsIntro::findOne(['goods_id'=>$id])->delete()){
+            //提示信息
+            \Yii::$app->session->setFlash('danger','删除成功');
+            return $this->redirect(['index']);
+        }
+
+    }
+
+
+
+}
+
+
+```
+
+## 商品的模型中
+- [x]
+```
+<?php
+
+namespace backend\models;
+
+use Yii;
+use yii\behaviors\TimestampBehavior;
+use yii\db\ActiveRecord;
+
+/**
+ * This is the model class for table "goods".
+ *
+ * @property int $id
+ * @property string $name 名称
+ * @property string $sn 货号
+ * @property int $logo 商品头像
+ * @property int $goods_category_id 分类ID
+ * @property int $brand_id 品牌ID
+ * @property string $market_price 市场价格
+ * @property string $shop_price 本地价格
+ * @property int $stock 库存
+ * @property int $status 是否上架
+ * @property int $sort 排序
+ * @property int $create_time 录入时间
+ */
+class Goods extends \yii\db\ActiveRecord
+{
+    //设置一个时间方法
+    public function behaviors()
+    {
+        return [
+            [
+
+                'class' => TimestampBehavior::className(),
+                'attributes' => [
+                    ActiveRecord::EVENT_BEFORE_INSERT => ['create_time'],
+                ],
+                // if you're using datetime instead of UNIX timestamp:
+                // 'value' => new Expression('NOW()'),
+            ],
+        ];
+    }
+    public static $ses=['0'=>'上架','1'=>'下架'];
+    public $images;
+//    public $detail;
+    /**
+     * @inheritdoc
+     */
+    public function rules()
+    {
+        return [
+            [['name','market_price', 'shop_price','stock','status' ], 'required'],
+            [['goods_category_id','brand_id','sort','logo','images','sn'],'safe']
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'name' => '名称',
+            'sn' => '货号',
+            'logo' => '商品LOGO',
+            'images' => '商品图片',
+            'goods_category_id' => '所属分类',
+            'brand_id' => '所属品牌',
+            'market_price' => '市场价格',
+            'shop_price' => '本地价格',
+            'stock' => '库存',
+            'status' => '是否上架',
+            'sort' => '排序',
+            'detail' => '商品详情',
+        ];
+    }
+
+    /**
+     * 获取数据此时
+     * 一对一
+     */
+    public function getContents()
+    {
+        //获取数据
+        return $this->hasOne(GoodsIntro::className(),['goods_id'=>'id']);
+
+    }
+    public function getCategorys()
+    {
+        //获取数据
+        return $this->hasOne(Category::className(),["id"=>"goods_category_id"]);
+
+    }
+    public function getBrands()
+    {
+        //获取数据
+        return $this->hasOne(Brand::className(),['id'=>'brand_id']);
+
+    }
+
+}
+
+```
+## 商品内容详情GoodsIntroController.php
+
+```
+<?php
+
+namespace backend\controllers;
+
+use backend\models\GoodsIntro;
+
+class GoodsIntroController extends \yii\web\Controller
+{
+    /**
+     * 展示商品详情
+     * @return string
+     *
+     */
+    public function actionIndex()
+    {
+        //获取所有的数据
+        $intros=GoodsIntro::find()->all();
+        //载入视图
+        return $this->render('index',compact('intros'));
+    }
+
+}
+
+```
+## 商品内容模型
+
+```
+<?php
+
+namespace backend\models;
+
+use Yii;
+
+/**
+ * This is the model class for table "goods_intro".
+ *
+ * @property int $id
+ * @property int $goods_id 商品ID
+ * @property string $content 商品描述
+ */
+class GoodsIntro extends \yii\db\ActiveRecord
+{
+    /**
+     * @inheritdoc
+     */
+    public function rules()
+    {
+        return [
+            [['content'], 'required'],
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'goods_id' => '商品ID',
+            'content' => '商品描述',
+        ];
+    }
+}
+
+```
+## 商品头像模型GoodsLogo.php
+
+```
+<?php
+
+namespace backend\models;
+
+use Yii;
+
+/**
+ * This is the model class for table "goods_logo".
+ *
+ * @property int $id
+ * @property int $goods_id 商品ID
+ * @property string $path 图片路径
+ */
+class GoodsLogo extends \yii\db\ActiveRecord
+{
+    /**
+     * @inheritdoc
+     */
+    public function rules()
+    {
+        return [
+            [['goods_id'], 'integer'],
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'goods_id' => '商品ID',
+            'path' => '图片路径',
+        ];
+    }
+}
+
+```
+## 分析所需的商品内容详情
+
+```
+商品详情（goods_intro）
+	id
+	商品内容（intro）
+	商品id(goods_id)
+```
+## 分析所需的商品LOGO
+
+```
+商品logo表（goods_logo）
+	id
+	商品id（goods_id）
+	图片路径（path）
+```
+
+
+
+
+## 3.商品列表页可以进行搜索(商品名,商品状态,售价范围 
+
+## 4.新增商品自动生成sn,规则为年月日+今天的第几个商品,比如201704010001 
+## 5.商品详情使用ueditor插件 
+
+# 6.2.要点难点及解决方案
+### 1.商品分类只能选择第三级分类
+#### 2.品牌使用下拉选择
+#### 3.商品相册,添加完商品后,跳转到添加商品相册页面,允许多图片上传
+#### 4.创建goods_day_count数据迁移时,如何创建date类型主键
+
+5.商品介绍使用UEditor(https://github.com/BigKuCha/yii2-ueditor-widget)
+ # 7.管理员模块
+ ## 7.1.需求
+ 
+ ```
+ 用户登录表(admin)
+ 	id
+ 	username(用户名)
+ 	password(密码)
+ 	salt(盐)
+ 	email(邮箱)
+ 	token(自动登录令牌)
+ 	token_create_time(令牌创建时间)
+ 	add_time(注册时间)
+ 	list_time(最后登录时间)
+ ```
+ ## 用户表所需的模型
+ 
+ ```
+ <?php
+ 
+ namespace backend\models;
+ 
+ use Yii;
+ use yii\behaviors\TimestampBehavior;
+ use yii\db\ActiveRecord;
+ use yii\web\IdentityInterface;
+ 
+ /**
+  * This is the model class for table "admin".
+  *
+  * @property int $id
+  * @property string $username 用户名
+  * @property string $password 密码
+  * @property string $salt 盐
+  * @property string $email 邮箱
+  * @property string $token 自动登录令牌
+  * @property int $token_create_time 令牌创建时间
+  * @property int $add_time 注册时间
+  * @property int $last_time 最后登录时间
+  */
+ class Admin extends \yii\db\ActiveRecord implements IdentityInterface
+ {
+     //设置一个时间方法
+     public function behaviors()
+     {
+         return [
+             [
+                 'class' => TimestampBehavior::className(),
+                 'attributes' => [
+                     ActiveRecord::EVENT_BEFORE_INSERT => ['add_time'],
+                     ActiveRecord::EVENT_BEFORE_UPDATE => ['last_time'],
+                 ],
+                 // if you're using datetime instead of UNIX timestamp:
+                 // 'value' => new Expression('NOW()'),
+             ],
+         ];
+     }
+     /**
+      * @inheritdoc
+      */
+     public function rules()
+     {
+         return [
+             [['username', 'password', 'email'], 'required'],
+             [['add_time', 'last_time'], 'safe'],
+         ];
+     }
+ 
+     /**
+      * @inheritdoc
+      */
+     public function attributeLabels()
+     {
+         return [
+             'id' => 'ID',
+             'username' => '用户名',
+             'password' => '密码',
+             'salt' => '盐',
+             'email' => '邮箱',
+             'token' => '自动登录令牌',
+             'token_create_time' => '令牌创建时间',
+             'add_time' => '注册时间',
+             'last_time' => '最后登录时间',
+         ];
+     }
+ 
+     /**
+      * Finds an identity by the given ID.
+      * @param string|int $id the ID to be looked for
+      * @return IdentityInterface the identity object that matches the given ID.
+      * Null should be returned if such an identity cannot be found
+      * or the identity is not in an active state (disabled, deleted, etc.)
+      */
+     public static function findIdentity($id)
+     {
+         return Admin::findOne($id);
+     }
+ 
+     /**
+      * Finds an identity by the given token.
+      * @param mixed $token the token to be looked for
+      * @param mixed $type the type of the token. The value of this parameter depends on the implementation.
+      * For example, [[\yii\filters\auth\HttpBearerAuth]] will set this parameter to be `yii\filters\auth\HttpBearerAuth`.
+      * @return IdentityInterface the identity object that matches the given token.
+      * Null should be returned if such an identity cannot be found
+      * or the identity is not in an active state (disabled, deleted, etc.)
+      */
+     public static function findIdentityByAccessToken($token, $type = null)
+     {
+         // TODO: Implement findIdentityByAccessToken() method.
+     }
+ 
+     /**
+      * Returns an ID that can uniquely identify a user identity.
+      * @return string|int an ID that uniquely identifies a user identity.
+      */
+     public function getId()
+     {
+         return $this->id;
+     }
+ 
+     /**
+      * Returns a key that can be used to check the validity of a given identity ID.
+      *
+      * The key should be unique for each individual user, and should be persistent
+      * so that it can be used to check the validity of the user identity.
+      *
+      * The space of such keys should be big enough to defeat potential identity attacks.
+      *
+      * This is required if [[User::enableAutoLogin]] is enabled.
+      * @return string a key that is used to check the validity of a given identity ID.
+      * @see validateAuthKey()
+      */
+     public function getAuthKey()
+     {
+         // TODO: Implement getAuthKey() method.
+     }
+ 
+     /**
+      * Validates the given auth key.
+      *
+      * This is required if [[User::enableAutoLogin]] is enabled.
+      * @param string $authKey the given auth key
+      * @return bool whether the given auth key is valid.
+      * @see getAuthKey()
+      */
+     public function validateAuthKey($authKey)
+     {
+         // TODO: Implement validateAuthKey() method.
+     }
+ }
+ 
+ ```
+ 
+ 
+ 
+ ## 1.管理员增删改查controller
+ 
+ ```
+ <?php
+ 
+ namespace backend\controllers;
+ 
+ use backend\models\Admin;
+ use backend\models\LoginForm;
+ use yii\web\Request;
+ use yii\web\UploadedFile;
+ 
+ class AdminController extends \yii\web\Controller
+ {
+     /**
+      * 显示用户列表
+      * @return string
+      *
+      */
+     public function actionIndex(){
+         //获取所有的数据
+         $admins=Admin::find()->all();
+         //载入视图
+         return $this->render('index',compact('admins'));
+ 
+     }
+ 
+     /**
+      *用户注册
+      * @return string|\yii\web\Response
+      *
+      */
+     public function actionAdd(){
+         //建立model对象
+         $model=new Admin();
+         //建立requert对象
+         $request=new Request();
+         //判断是否是post传值
+         if ($request->isPost) {
+             //绑定数据
+             $model->load($request->post());
+             //后台验证
+             if ($model->validate()) {
+                 //保存数据
+                 if ($model->save(false)) {
+                     //显示提示信息
+                     \Yii::$app->session->setFlash('success','恭喜你!注册成功');
+                     //跳转页面
+                     return $this->redirect(['index']);
+                 }
+ 
+             }else{
+                 //打印错误信息
+                 var_dump($model->getErrors());exit;
+             }
+         }
+         //载入视图
+         return $this->render('add',compact('model'));
+ 
+     }
+ 
+ 
+     /**
+      * 退出登录
+      * @return \yii\web\Response
+      */
+     public function actionOut(){
+         \Yii::$app->user->logout();
+ 
+         return $this->goHome();
+ 
+     }
+ 
+     /**
+      * 用户登录
+      * @return string|\yii\web\Response
+      */
+     public function actionLogin()
+     {
+         //生成一个登录表单
+         $model=new LoginForm();
+         //创建一个request的对象
+         $request=new Request();
+         //判断post提交
+         if ($request->isPost) {
+             //保存数据
+             $model->load($request->post());
+             //通过用户名找到对应的数据
+             $admin=Admin::find()->where(['username'=>$model->username])->one();
+ //            var_dump($admin);exit();
+             //验证用户名是不是存在
+             if($admin){
+ //                var_dump($admin);exit();
+                 //用户名存在通过数据库找到对应的密码,验证密码
+                 if($admin->password==$model->password){
+ 
+ //                    var_dump($model->password);exit();
+                     //通过设置的user组件来实现登录
+                     \Yii::$app->user->login($admin);
+ 
+ //                    var_dump( \Yii::$app->user->login($admin));exit();
+                     //跳转页面
+                     \Yii::$app->session->setFlash('success','登录成功');
+                     return $this->redirect(['index']);
+ 
+                 }else{
+                     //密码不正确时
+                     //\Yii::$app->session->setFlash('danger','密码错误');
+                     $model->addError('password','密码错误');
+                 }
+ 
+             }else{
+                 //用户名不存在
+                 //\Yii::$app->session->setFlash('danger','用户名不正确');
+                 $model->addError('name','用户名不正确');
+ 
+             }
+ 
+         }
+ 
+         //载入视图
+         return $this->render('login',compact('model'));
+     }
+ 
+ }
+ 
+ ```
+ ## 所需用户表单模型
+ 
+ ```
+ <?php
+ /**
+  * Created by PhpStorm.
+  * User: Administrator
+  * Date: 2018/3/13 0013
+  * Time: 18:30
+  */
+ 
+ namespace backend\models;
+ 
+ 
+ use yii\base\Model;
+ 
+ class LoginForm extends Model
+ {
+     //设置属性
+     public $username;
+     public $password;
+ 
+     public function rules()
+     {
+         return [
+             [['username', 'password'], 'required'],
+ //            [['code'],'captcha','captchaAction' => 'admin/code']//定义验证码的规则
+         ];
+     }
+ 
+     /**
+      * @inheritdoc
+      */
+     public function attributeLabels()
+     {
+         return [
+             'username' => '用户名:',
+             'password' => '密码:',
+         ];
+     }
+ 
+ }
+ ```
+ 
+ 
+ ### 2.管理员登录和注销
+ ### 3.自动登录(基于cookie)
+ #### 4.促销管理(选做)
+ #### 7.2.要点
+ #### 1.创建admin表(在user表基础上添加最后登录时间和最后登录ip)
 
 

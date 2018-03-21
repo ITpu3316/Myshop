@@ -1,4 +1,5 @@
 <Himl><h1>品牌列表</h1></Himl><br>
+<a href='<?=\yii\helpers\Url::to(['add'])?>' class="btn btn-info glyphicon glyphicon-plus"></a>
 <table class="table">
     <tr>
         <td>ID</td>
