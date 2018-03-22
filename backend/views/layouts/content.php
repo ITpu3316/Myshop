@@ -30,9 +30,9 @@ use dmstr\widgets\Alert;
     <div class="pull-right hidden-xs">
         <b>Version</b> 2.0
     </div>
-    <strong>perfect &copy; 2014-2015 <a href="http://almsaeedstudio.com">欢迎来到这个[Beautiful
+    <strong>perfect &copy; 2014-2015 <a href="http://almsaeedstudio.com">欢迎来到这个Beautiful
 
-            ]网站</a>.</strong>
+            网站</a>.</strong>
 </footer>
 
 <!-- Control Sidebar -->

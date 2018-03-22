@@ -8,9 +8,8 @@
                 <img src="<?= $directoryAsset ?>/img/user2-160x160.jpg" class="img-circle" alt="User Image"/>
             </div>
             <div class="pull-left info">
-                <p>ITpu3316</p>
-
-                <a href="#"><i class="fa fa-circle text-success"></i>嘻嘻</a>
+                <p><?=Yii::$app->user->identity->username?></p>
+                <a href="#"><i class="fa fa-circle text-success"></i><?=Yii::$app->user->isGuest?"离线":"在线"?></a>
             </div>
         </div>
 
@@ -33,7 +32,7 @@
 
                     ['label' => '菜单', 'options' => ['class' => 'header']],
                     [
-                        'label' => '用户管理',
+                        'label' => '用户',
                         'icon' => 'shopping-bag',
                         'url' => '#',
                         'items' => [
@@ -71,7 +70,7 @@
                         ],
                     ],
                     [
-                        'label' => '文章管理',
+                        'label' => '文章',
                         'icon' => 'shopping-bag',
                         'url' => '#',
                         'items' => [

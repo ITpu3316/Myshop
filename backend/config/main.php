@@ -27,7 +27,7 @@ return [
         ],
         'user' => [
             'identityClass' => \backend\models\Admin::className(),//通过这个来实现登录
-            'enableAutoLogin' => true,
+            'enableAutoLogin' => true,//开启自动登录
             'identityCookie' => ['name' => '_identity-backend', 'httpOnly' => true],
         ],
         'session' => [

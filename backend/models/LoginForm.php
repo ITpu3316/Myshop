@@ -16,11 +16,13 @@ class LoginForm extends Model
     //设置属性
     public $username;
     public $password;
+    public $rememberMe =true;
 
     public function rules()
     {
         return [
             [['username', 'password'], 'required'],
+            [['rememberMe'],'safe']
 //            [['code'],'captcha','captchaAction' => 'admin/code']//定义验证码的规则
         ];
     }

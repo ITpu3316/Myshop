@@ -2223,5 +2223,31 @@ class GoodsLogo extends \yii\db\ActiveRecord
  #### 4.促销管理(选做)
  #### 7.2.要点
  #### 1.创建admin表(在user表基础上添加最后登录时间和最后登录ip)
+ 
+ ##场景的应用
+```php
+第一步:先在模型中设置一个场景
+//定义一个场景
+    public function scenarios()
+    {
+        //获取默认的场景
+        $scenarios = parent::scenarios();
+        //设置全新的场景
+        $scenarios['add'] = ['username', 'password','status'];
+        $scenarios['edit'] = ['username', 'status', 'password'];
+        return $scenarios;
+    }
+第二步:在controller中的edit中
+    //设置场景
+    $model->setScenario('edit');
+    //保存原来的密码
+    $password=$model->password;
+    //给密码加密
+    $model->password=$model->password?\Yii::$app->security->generatePasswordHash($model->password):$password;
+    同时不要忘记,设置密码不能显示
+    $model->password=null;
+
+    
+```
 
 

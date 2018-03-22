@@ -48,7 +48,7 @@ $fieldOptions2 = [
             </div>
             <!-- /.col -->
         </div>
-
+        <?php ActiveForm::end();?>
     </div>
     <!-- /.login-box-body -->
 </div><!-- /.login-box -->
