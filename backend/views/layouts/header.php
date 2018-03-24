@@ -25,7 +25,7 @@ use yii\helpers\Html;
                 <li class="dropdown user user-menu">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                         <img src="<?= $directoryAsset ?>/img/user2-160x160.jpg" class="user-image" alt="User Image"/>
-                        <span class="hidden-xs"><?=Yii::$app->user->identity->username.'欢迎您!'?></span>
+                        <span class="hidden-xs">欢迎您!</span>
                     </a>
                     <ul class="dropdown-menu">
                         <!-- User image -->
@@ -49,8 +49,8 @@ use yii\helpers\Html;
                             </div>
                             <div class="pull-right">
                                 <?= Html::a(
-                                '登录',
-                                    ['/admin/login'],
+                                '退出',
+                                    ['/admin/out'],
                                     ['data-method' => 'post', 'class' => 'btn btn-default btn-flat']
                                 ) ?>
                             </div>
