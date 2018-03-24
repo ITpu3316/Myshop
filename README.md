@@ -2246,6 +2246,516 @@ class GoodsLogo extends \yii\db\ActiveRecord
     $model->password=$model->password?\Yii::$app->security->generatePasswordHash($model->password):$password;
     同时不要忘记,设置密码不能显示
     $model->password=null;
+    
+    # 8.RBAC权限控制
+    ## 8.1.需求
+    ### 1.权限的增删改查
+    
+    ```
+    <?php
+    
+    namespace backend\controllers;
+    
+    use backend\models\AuthItem;
+    use yii\rbac\Item;
+    
+    class ItrmController extends \yii\web\Controller
+    {
+        /**
+         * 权限列表
+         * @return string
+         */
+        public function actionIndex()
+        {
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //找到所有的权限
+            $items=$auth->getPermissions();
+            //载入视图
+            return $this->render('index',compact('items'));
+        }
+    
+        /**
+         * 权限添加
+         * @return string|\yii\web\Response
+         */
+        public function actionAdd(){
+    
+            //创建模型对象
+            $model=new AuthItem();
+    
+            //判断是不是post提交以及验证
+            if($model->load(\Yii::$app->request->post()) && $model->validate()){
+    
+                //创建auth对象
+                $auth=\Yii::$app->authManager;
+    
+                //创建权限
+                $per=$auth->createPermission($model->name);
+    
+                //创建描述
+                $per->description=$model->description;
+    
+                //分配权限到数据库中
+                if ($auth->add($per)) {
+                    //显示提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你!添加成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+    
+                }
+    
+            }else{
+                //打印错误信息
+    //            var_dump($model->getErrors());exit;
+            }
+    
+            //载入视图
+            return $this->render('add',compact('model'));
+    
+        }
+    
+        /**
+         * 权限编辑
+         * @param $name 权限名称
+         * @return string|\yii\web\Response
+         */
+        public function actionEdit($name){
+    
+            //创建模型对象
+            $model=AuthItem::findOne($name);
+    
+            //判断是不是post提交以及验证
+            if($model->load(\Yii::$app->request->post()) && $model->validate()){
+    
+                //创建auth对象
+                $auth=\Yii::$app->authManager;
+    
+                //得到权限
+                $per=$auth->getPermission($model->name);
+    
+                //创建描述
+                $per->description=$model->description;
+    
+                //分配权限到数据库中
+                if ($auth->update($model->name,$per)) {
+                    //显示提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你!编辑成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+    
+                }
+    
+            }else{
+                //打印错误信息
+    //            var_dump($model->getErrors());exit;
+            }
+    
+            //载入视图
+            return $this->render('edit',compact('model'));
+    
+        }
+    
+        /**
+         * 权限删除
+         * @param $name 权限名称
+         * @return \yii\web\Response
+         */
+        public function actionDel($name){
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+    
+            //找到权限
+            $per=$auth->getPermission($name);
+    
+            //删除数据
+            if ($auth->remove($per)) {
+                //显示提示信息
+                \Yii::$app->session->setFlash('danger','恭喜你!删除'.$name.'成功');
+                //跳转页面
+                return $this->redirect(['index']);
+            }
+    
+    
+        }
+    
+    }
+    
+    ```
+    
+    ### 2.角色的增删改查
+    
+    ```
+    <?php
+    
+    namespace backend\controllers;
+    
+    use backend\models\AuthItem;
+    use yii\helpers\ArrayHelper;
+    use yii\rbac\Item;
+    
+    class RoleController extends \yii\web\Controller
+    {
+        /**
+         * 角色列表
+         * @return string
+         */
+        public function actionIndex()
+        {
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //找到所有的角色
+            $roles=$auth->getRoles();
+            //载入视图
+            return $this->render('index',compact('roles'));
+        }
+    
+        /**
+         * 角色添加
+         * @return string|\yii\web\Response
+         */
+        public function actionAdd(){
+    
+            //创建模型对象
+            $model=new AuthItem();
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //得到所有的角色
+            $itrm=$auth->getPermissions();
+            //转换成一维数组
+            $itrmArr=ArrayHelper::map($itrm,'name','description');
+    //        var_dump($itrmArr);exit();
+            //判断是不是post提交以及验证
+            if($model->load(\Yii::$app->request->post()) && $model->validate()){
+    //          //创建auth对象
+    //          $auth=\Yii::$app->authManager;
+                //创建角色
+                $role=$auth->createRole($model->name);
+                //创建描述
+                $role->description=$model->description;
+                //分配权限到库中
+                if ($auth->add($role)) {
+                    //判断有没有添加权限
+                    if ($model->permissions) {
+                        //给当前角色添加权限 此时循环取出权限给角色
+                        foreach($model->permissions as $perName){
+                            //通过权限名取得权限对象
+                            $per=$auth->getPermission($perName);
+                            //给角色添加权限
+                            $auth->addChild($role,$per);
+                        }
+                    }
+                    //显示提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你!添加成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+                }
+    
+            }else{
+                //打印错误信息
+    //            var_dump($model->getErrors());exit;
+            }
+            //载入视图
+            return $this->render('add',compact('model','itrmArr'));
+        }
+    
+        /**
+         * 角色编辑
+         * @param $name 角色名称
+         * @return string|\yii\web\Response
+         */
+        public function actionEdit($name){
+    
+            //创建模型对象
+            $model=AuthItem::findOne($name);
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //得到所有的权限
+            $itrm=$auth->getPermissions();
+            //转换成一维数组
+            $itrmArr=ArrayHelper::map($itrm,'name','description');
+    //        var_dump($itrmArr);exit();
+            //判断是不是post提交以及验证
+            if($model->load(\Yii::$app->request->post()) && $model->validate()){
+    
+    //            //创建auth对象
+    //            $auth=\Yii::$app->authManager;
+    
+                //得到角色
+                $role=$auth->getRole($model->name);
+    
+                //创建描述
+                $role->description=$model->description;
+    
+                //更新角色
+                if ($auth->update($model->name,$role)) {
+                    //在编辑之前吧所有 的权限删除
+                    $auth->removeChildren($role);
+    
+                    //判断有没有添加权限
+                    if ($model->permissions) {
+                        //给当前角色添加权限 此时循环取出权限给角色
+                        foreach($model->permissions as $perName){
+    
+                            //通过权限名取得权限对象
+                            $per=$auth->getPermission($perName);
+    
+                            //给角色添加权限
+                            $auth->addChild($role,$per);
+    
+                        }
+                    }
+    
+    
+                    //显示提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你!添加成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+    
+                }
+    
+            }else{
+                //打印错误信息
+    //            var_dump($model->getErrors());exit;
+            }
+            //得到当前所有的权限
+            $rolePers=$auth->getPermissionsByRole($name);
+    
+            //取$rolePers中的所有key值组成一个新的数组
+    //        var_dump(array_keys($rolePers));exit();
+            //给权限回显数据
+            $model->permissions=array_keys($rolePers);
+            //载入视图
+            return $this->render('edit',compact('model','itrmArr'));
+    
+        }
+        /**
+         * 角色删除
+         * @param $name 角色名称
+         * @return \yii\web\Response
+         */
+        public function actionDel($name){
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+    
+            //找到角色
+            $role=$auth->getRole($name);
+    
+            //删除数据
+            if ($auth->remove($role)) {
+                //显示提示信息
+                \Yii::$app->session->setFlash('danger','恭喜你!删除'.$name.'成功');
+                //跳转页面
+                return $this->redirect(['index']);
+            }
+    
+        }
+    
+        /**
+         * 给用户添加一个角色
+         * @param $roleName角色名称
+         */
+        public function actionAdminRole($roleName,$id){
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //通过角色名称找出对应的角色对象
+            $role=$auth->getRole($roleName);
+            //给用户指派角色
+            $auth->assign($role,$id);
+    
+        }
+    }
+    
+    ```
+    
+    ### 3.角色和权限关联
+    
+    ```
+     public function actionAdd(){
+    
+            //创建模型对象
+            $model=new AuthItem();
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //得到所有的角色
+            $itrm=$auth->getPermissions();
+            //转换成一维数组
+            $itrmArr=ArrayHelper::map($itrm,'name','description');
+    //        var_dump($itrmArr);exit();
+            //判断是不是post提交以及验证
+            if($model->load(\Yii::$app->request->post()) && $model->validate()){
+    //          //创建auth对象
+    //          $auth=\Yii::$app->authManager;
+                //创建角色
+                $role=$auth->createRole($model->name);
+                //创建描述
+                $role->description=$model->description;
+                //分配权限到库中
+                if ($auth->add($role)) {
+                    //判断有没有添加权限
+                    if ($model->permissions) {
+                        //给当前角色添加权限 此时循环取出权限给角色
+                        foreach($model->permissions as $perName){
+                            //通过权限名取得权限对象
+                            $per=$auth->getPermission($perName);
+                            //给角色添加权限
+                            $auth->addChild($role,$per);
+                        }
+                    }
+                    //显示提示信息
+                    \Yii::$app->session->setFlash('success','恭喜你!添加成功');
+                    //跳转页面
+                    return $this->redirect(['index']);
+                }
+    
+            }else{
+                //打印错误信息
+    //            var_dump($model->getErrors());exit;
+            }
+            //载入视图
+            return $this->render('add',compact('model','itrmArr'));
+        }
+           
+            
+    ```
+    
+    ### 4.用户和角色关联
+    
+    
+    ```
+    /**
+         * 给用户添加一个角色
+         * @param $roleName角色名称
+         */
+        public function actionAdminRole($roleName,$id){
+            //创建auth对象
+            $auth=\Yii::$app->authManager;
+            //通过角色名称找出对应的角色对象
+            $role=$auth->getRole($roleName);
+            //给用户指派角色
+            $auth->assign($role,$id);
+    
+        }
+    ```
+    ```
+    此时需要注意:
+        在场景中需要添加上
+        //定义一个场景
+        public function scenarios()
+        {
+            //获取默认的场景
+            $scenarios = parent::scenarios();
+            //设置全新的场景
+            $scenarios['add'] = ['username', 'password','status','adminRole'];
+            $scenarios['edit'] = ['username', 'status', 'password','adminRole'];
+            return $scenarios;
+        }
+    ```
+    
+    ### 5.菜单的增删改查
+    
+    ```
+    
+    ```
+    
+    ### 6.菜单和权限关联
+    
+    
+    ```
+    <?php
+    
+    namespace backend\models;
+    
+    use Yii;
+    
+    /**
+     * This is the model class for table "mulu".
+     *
+     * @property int $id
+     * @property string $name 名称
+     * @property string $ico 样式
+     * @property string $url 地址
+     * @property int $parend_id 父类ID
+     */
+    class Mulu extends \yii\db\ActiveRecord
+    {
+        /**
+         * @inheritdoc
+         */
+        public function rules()
+        {
+            return [
+                [['id', 'name', 'ico', 'url', 'parend_id'], 'required'],
+            ];
+        }
+    
+        /**
+         * @inheritdoc
+         */
+        public function attributeLabels()
+        {
+            return [
+                'id' => 'ID',
+                'name' => '名称',
+                'ico' => '样式',
+                'url' => '地址',
+                'parend_id' => '父类ID',
+            ];
+        }
+        //声明一个静态方法
+        public static function menu(){
+    //        $menu=[
+    //            [
+    //                'label' => '商品',
+    //                'icon' => 'shopping-bag',
+    //                'url' => '#',
+    //                'items' => [
+    //                    ['label' => '商品列表', 'icon' => 'bars', 'url' => ['/goods/index'],],
+    //                    ['label' => '商品添加', 'icon' => 'cloud-download', 'url' => ['/goods/add'],],
+    //                ],
+    //            ],
+    //        ];
+            //定义一个空数组来存放新的菜单
+            $menuAll=[];
+            //得到所有的一级目录
+            $mulus=self::find()->where(['parend_id'=>0])->all();
+            foreach ( $mulus as $mu){
+    
+                $newMenu=[];
+                $newMenu['label']=$mu->name;
+                $newMenu['icon']=$mu->ico;
+                $newMenu['url']=$mu->url;
+    
+                //通过当前一级目录找到所有的二级目录
+                $muluSons=self::find()->where(['parend_id'=>$mu->id])->all();
+    //            var_dump($muluSons);exit();
+    
+                //再次循环
+                foreach ( $muluSons as $son) {
+    
+                    $newMenuSon = [];
+                    $newMenuSon['label'] = $son->name;
+                    $newMenuSon['icon'] = $son->ico;
+                    $newMenuSon['url'] = $son->url;
+    
+    //                var_dump($newMenuSon);exit();
+                    $newMenu['items'][]=$newMenuSon;
+                }
+    
+    //            var_dump($newMenu);exit();
+                $menuAll[]=$newMenu;
+    
+            }
+    
+            return $menuAll;
+        }
+    }
+    
+    ```
+    
+    ## 8.2.设计要点
+    1.配置RBAC（在common配置authManager组件，执行rbac数据迁移）
+    2.根据authManager相应方法进行开发
 
     
 ```
