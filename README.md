@@ -2759,5 +2759,124 @@ class GoodsLogo extends \yii\db\ActiveRecord
 
     
 ```
+# 8.RBAC权限控制yii2 插件
+## 8.1.需求
+### 1.安装方法
+
+```
+在大象（https://packagist.org/packages/mdmsoft/yii2-admin）里找到mdmsoft/yii2-admin
+```
+### 下载
+
+```
+composer require mdmsoft/yii2-admin "~2.0"
+```
+### 这里的~需要到百度里去了解
+## 配置文件
+
+```
+return [
+    'modules' => [
+        'admin' => [
+            'class' => 'mdm\admin\Module',
+            ...
+        ]
+        ...
+    ],
+```
+### 菜单栏
+
+```
+yii migrate --migrationPath=@mdm/admin/migrations
+```
+
+### backend/config/main.php中
+
+```
+还行加上
+'as access' => [
+        'class' => 'mdm\admin\components\AccessControl',
+        //白名单
+        'allowActions' => [
+//            '*',
+            'admin/login',
+            'admin/out',
+//            'site/*',
+//            'admin/*',
+//            'some-controller/some-action',
+            // The actions listed here will be allowed to everyone including guests.
+            // So, 'admin/*' should not appear here in the production, of course.
+            // But in the earlier stages of your development, you may probably want to
+            // add a lot of actions here until you finally completed setting up rbac,
+            // otherwise you may not even take a first step.
+        ]
+    ]
+```
+### 这里额外提到
+#### 时间输出
+
+```
+<span id="show"></span>
+....
+<script>
+    window.onload = function() {
+        var show = document.getElementById("show");
+        setInterval(function() {
+            var time = new Date();
+            // 程序计时的月从0开始取值后+1
+            var m = time.getMonth() + 1;
+            var t = time.getFullYear() + "年" + m + "月"
+                + time.getDate() + "日" + time.getHours() + ":"
+                + time.getMinutes() + ":" + time.getSeconds();
+            show.innerHTML = t;
+        }, 1000);
+    };
+</script>
+```
+## 菜单栏图标显示
+
+```
+ <?php
+                $callback = function($menu){
+                    $data = json_decode($menu['data'], true);
+                    $items = $menu['children'];
+                    $return = [
+                        'label' => $menu['name'],
+                        'url' => [$menu['route']],
+                    ];
+                    //处理我们的配置
+                    if ($data) {
+                        //visible
+                        isset($data['visible']) && $return['visible'] = $data['visible'];
+                        //icon
+                        isset($data['icon']) && $data['icon'] && $return['icon'] = $data['icon'];
+                        //other attribute e.g. class...
+                        $return['options'] = $data;
+                    }
+                    //没配置图标的显示默认图标
+                    (!isset($return['icon']) || !$return['icon']) && $return['icon'] = 'fa fa-circle-o';
+                    $items && $return['items'] = $items;
+                    return $return;
+                };
+                ?>
+
+
+
+
+        <?= dmstr\widgets\Menu::widget(
+            [
+                'options' => ['class' => 'sidebar-menu tree', 'data-widget'=> 'tree'],
+                'items' => \mdm\admin\components\MenuHelper::getAssignedMenu(Yii::$app->user->id,null,$callback),
+            ]
+        ) ?>
+```
+## 菜单列表
+
+```
+更新菜单: 品牌
+数据 
+{"icon": " fa-bars", "visible": true}
+
+```
 
 
