@@ -2878,5 +2878,503 @@ yii migrate --migrationPath=@mdm/admin/migrations
 {"icon": " fa-bars", "visible": true}
 
 ```
+# 分析需求
+## 第一步从注册开始
+
+```
+## 需要用到AJAX提交数据
+
+```
+### 在controller中
+
+```
+<?php
+
+namespace frontend\controllers;
+
+use backend\models\LoginForm;
+use frontend\models\User;
+use Mrgoon\AliSms\AliSms;
+use yii\helpers\Json;
+use yii\web\Request;
+
+class UserController extends \yii\web\Controller
+{
+    public function actions()
+    {
+        return [
+            'code' => [
+                'class' => 'yii\captcha\CaptchaAction',
+                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
+                'maxLength' => 3,
+                'minLength' => 3,
+            ],
+        ];
+    }
+//    public $layout=false;
+    public function actionIndex()
+    {
+        return $this->render('index');
+    }
+
+    /**
+     * 用户注册界面
+     */
+    public function actionReg(){
+        $user=new User();
+        //引入场景
+        $user->setScenario('reg');
+        //判断是不是post提交
+        $request=\Yii::$app->request;
+        if ($request->isPost) {
+            //绑定数据
+            $user->load($request->post());
+            //后台验证
+            if ($user->validate()) {
+                //令牌
+                $user->auth_key=\Yii::$app->security->generateRandomString();
+                //哈希密码加密
+                $user->password_hash=\Yii::$app->security->generatePasswordHash($user->password);
+
+                //保存数据
+                if ($user->save(false)) {
+                    $result=[
+                        'status'=>1,
+                        'msg'=>'注册成功',
+                        'data'=>"",
+                    ];
+                    //跳转页面
+                    return Json::encode($result);
+                }
+            }else{
+                $result=[
+                    'status'=>0,
+                    'msg'=>'注册失败',
+                    'data'=>$user->errors,
+                ];
+                //跳转页面
+                return Json::encode($result);
+            }
+//            var_dump($user);
+            $user->username=$request->post('username');
+            $user->email=$request->post('email');
+            $user->mobile=$request->post('tel');
+            $user->password_hash=\Yii::$app->security->generatePasswordHash($request->post('username'));
+
+            $user->save();
+
+        }
+
+        //载入视图
+        return $this->render('reg');
+    }
+
+    /**
+     * 生成手机验证码
+     * @param $mobile输入的手机号
+     * @return int
+     */
+    public function actionSendSms($mobile){
+        //生成验证码
+        $code=rand(100000,999999);
+
+        //发送验证码到$mobile
+
+        $config = [
+            'access_key' => 'LTAIG8veNdHfusVc',
+            'access_secret' => 'K59adOn1qIh43BVjt1gcaAglsK5nHx',
+            'sign_name' => '光木木',//签名
+        ];
+
+//        $aliSms = new Mrgoon\AliSms\AliSms();
+        $aliSms=new AliSms();//创建一个发送短信的对象专门用来发送短信
+        $response = $aliSms->sendSms($mobile, 'SMS_128646098', ['code'=> $code], $config);
+
+        //        var_dump($response->Message);exit();
+        if ($response->Message) {
+            //把生成的验证码保存到session中 这里的手机号看做是键名，验证码是键值
+            $session=\Yii::$app->session;
+
+            $session->set('tel_'.$mobile,$code);
+
+            //测试
+            return $code;
+
+        }else{
+
+            var_dump($response->Message);
+        }
+
+    }
+
+    /**
+     * @param $mobile输入的手机号
+     * @param $code生成的验证码
+     */
+    public function actionCheckSms($mobile,$code){
+        //通过手机号取出之前存入的验证码
+        $codeOld=\Yii::$app->session->get("tel_".$mobile);
+
+        //判断输入的code是否准确
+        if ($code==$codeOld) {
+            echo "OK";
+        }else{
+            echo "NO";
+        }
+        
+    }
+
+
+    public function actionLogin(){
+        //实例化user
+        $model=new User();
+        //实例化request
+        $request=new Request();
+        //引入场景
+        $model->setScenario('login');
+        //判断是不是post提交
+        if ($request->isPost) {
+//            echo "<pre>";
+            //保存数据
+            $model->load($request->post());
+            //后台验证
+            if ($model->validate()) {
+                //通过用户名找到对应的数据
+                $users = User::find()->where(['username' => $model->username])->one();
+//            var_dump($users);exit();
+                //判断
+                if ($users) {
+                    //用户存在则通过数据库找到对应的密码进行验证$users->passwprd_hash=$model->password_hash
+                    if (\Yii::$app->security->validatePassword($model->password,$users->password_hash)) {
+//                        var_dump($users->password_hash);exit();
+//                        获取用户登录最后的IP
+                        $users->login_ip=ip2long(\Yii::$app->request->userIP);
+//                        获取用户最后登录的时间
+                        $users->login_time=time();
+                        if ($users->save(false)) {
+                            $results=[
+                                'status'=>1,
+                                'msg'=>'登录成功',
+                                'data'=>"",
+                            ];
+                            //跳转页面
+                            return Json::encode($results);
+                        }
+
+                    }else{
+                        $results=[
+                            'status'=>0,
+                            'msg'=>'密码错误',
+                            'data'=>$model->errors,
+                        ];
+                        //跳转页面
+                        return Json::encode($results);
+                    }
+                }else{
+                    $results=[
+                        'status'=>-1,
+                        'msg'=>'用户名错误',
+                        'data'=>$model->errors,
+                    ];
+                    //跳转页面
+                    return Json::encode($results);
+                }
+
+            }else{
+                $results=[
+                    'status'=>-2,
+                    'msg'=>'验证码错误',
+                    'data'=>$model->errors,
+                ];
+                //跳转页面
+                return Json::encode($results);
+            }
+//            var_dump($model->getErrors());exit();
+        }
+
+        //载入视图
+        return $this->render('login');
+
+    }
+
+}
+
+```
+
+### 模型中model
+
+```
+<?php
+
+namespace frontend\models;
+
+use Yii;
+use yii\behaviors\TimestampBehavior;
+use yii\db\ActiveRecord;
+use yii\web\IdentityInterface;
+
+/**
+ * This is the model class for table "user".
+ *
+ * @property int $id
+ * @property string $username 用户名
+ * @property string $auth_key 自动登录令牌
+ * @property string $password_hash 哈希密码
+ * @property string $password_reset_token
+ * @property string $email 邮件
+ * @property int $status 状态
+ * @property int $created_at 注册时间
+ * @property int $updated_at 修改时间
+ * @property string $mobile 手机号码
+ * @property int $logiin_time 最后登录时间
+ * @property int $login_ip 登录IP
+ */
+class User extends \yii\db\ActiveRecord implements IdentityInterface
+{
+    public $password;//密码
+    public $rePassword;//确认密码
+    public $checkCode;//注册验证码
+    public $captcha;//短信验证码
+    public $rememberMe;//是否记住密码
+    public $checkde;//登录验证码
+    //设置一个时间方法
+    public function behaviors()
+    {
+        return [
+            [
+                'class' => TimestampBehavior::className(),
+                'attributes' => [
+                    ActiveRecord::EVENT_BEFORE_INSERT => ['created_at','updated_at'],
+                    ActiveRecord::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+                // if you're using datetime instead of UNIX timestamp:
+                // 'value' => new Expression('NOW()'),
+            ],
+        ];
+    }
+    //定义一个场景
+    public function scenarios()
+    {
+        //获取默认的场景
+        $scenarios = parent::scenarios();
+        //设置全新的场景
+        $scenarios['reg'] = ['username', 'password','rePassword','mobile','captcha','checkCode','email'];
+        $scenarios['login'] = ['username','password','rememberMe ','checkde'];
+        return $scenarios;
+    }
+    /**
+     * @inheritdoc
+     */
+    public function rules()
+    {
+        return [
+            [['username','password','rePassword','mobile', 'email'], 'required'],
+            [['username'],'unique','on' => 'reg'],
+            [['mobile'],'match','pattern'=>'/(13|14|15|17|18|19)[0-9]{9}/','message'=>'请输入正确的手机号码'],//验证手机号码
+            ['rePassword','compare','compareAttribute' => 'password'],//确认密码
+            [['checkCode'],'captcha','captchaAction' => 'user/code','on' => 'reg'],//注册验证码
+            [['checkde'],'captcha','captchaAction' => 'user/code','on' => 'login'],//登录验证码
+            [['captcha'],'validateCaptcha'],//自定义短信验证码规则
+            [['rememberMe'],'safe','on' => 'login']//记住密码在login登录场景中
+        ];
+    }
+
+    public function validateCaptcha($attribute){
+
+        //通过手机号取出之前存入的验证码
+        $codeOld=\Yii::$app->session->get("tel_".$this->mobile);
+
+        //判断输入的code是否准确
+        if ($this->captcha!=$codeOld) {
+            $this->addError($attribute,'验证码错误');
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function attributeLabels()
+    {
+        return [
+            'id' => 'ID',
+            'username' => '用户名',
+            'auth_key' => '自动登录令牌',
+            'password' => '正确密码',
+            'rePassword' => '再次输入密码',
+            'password_reset_token' => 'Password Reset Token',
+            'email' => '邮件',
+            'status' => '状态',
+            'created_at' => '注册时间',
+            'updated_at' => '修改时间',
+            'mobile' => '手机号码',
+            'login_time' => '最后登录时间',
+            'login_ip' => '登录IP',
+        ];
+    }
+
+    /**
+     * Finds an identity by the given ID.
+     * @param string|int $id the ID to be looked for
+     * @return IdentityInterface the identity object that matches the given ID.
+     * Null should be returned if such an identity cannot be found
+     * or the identity is not in an active state (disabled, deleted, etc.)
+     */
+    public static function findIdentity($id)
+    {
+        return User::findOne(['id'=>$id,'status'=>1]);
+    }
+
+    /**
+     * Finds an identity by the given token.
+     * @param mixed $token the token to be looked for
+     * @param mixed $type the type of the token. The value of this parameter depends on the implementation.
+     * For example, [[\yii\filters\auth\HttpBearerAuth]] will set this parameter to be `yii\filters\auth\HttpBearerAuth`.
+     * @return IdentityInterface the identity object that matches the given token.
+     * Null should be returned if such an identity cannot be found
+     * or the identity is not in an active state (disabled, deleted, etc.)
+     */
+    public static function findIdentityByAccessToken($token, $type = null)
+    {
+        // TODO: Implement findIdentityByAccessToken() method.
+    }
+
+    /**
+     * Returns an ID that can uniquely identify a user identity.
+     * @return string|int an ID that uniquely identifies a user identity.
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Returns a key that can be used to check the validity of a given identity ID.
+     *
+     * The key should be unique for each individual user, and should be persistent
+     * so that it can be used to check the validity of the user identity.
+     *
+     * The space of such keys should be big enough to defeat potential identity attacks.
+     *
+     * This is required if [[User::enableAutoLogin]] is enabled.
+     * @return string a key that is used to check the validity of a given identity ID.
+     * @see validateAuthKey()
+     */
+    public function getAuthKey()
+    {
+        return $this->auth_key;
+    }
+
+    /**
+     * Validates the given auth key.
+     *
+     * This is required if [[User::enableAutoLogin]] is enabled.
+     * @param string $authKey the given auth key
+     * @return bool whether the given auth key is valid.
+     * @see getAuthKey()
+     */
+    public function validateAuthKey($authKey)
+    {
+        // TODO: Implement validateAuthKey() method.
+        return $this->auth_key===$authKey;
+    }
+}
+
+```
+
+# 注意这里需要用到场景
+### 视图view中
+
+```
+视图具体代码就不需要了
+```
+
+
+```
+<script type="text/javascript">
+        //ajax提交注册
+        $(function () {
+            //监听注册点击事件
+            $(".login_btn").click(function () {
+                //提交数据注册
+                $.post('/user/reg',$('#reg').serialize(),function (result) {
+//                    console.dir(result);
+                    //判断数据
+                    if (result.status){
+
+                        //提示信息
+                        layer.msg(result.msg);
+//                        alert(result.msg);
+                        //跳转到登录界面
+                        self.location.href="/user/login";
+
+                    }else {
+
+                        $.each(result.data,function (k,v) {
+
+                            layer.tips(v[0], '#'+k, {
+                                tips: [2, '#0FA6D8'], //还可配置颜色
+                                tipsMore: true,
+                            });
+//                            alert(v[0]);
+                            console.log(v[0]);
+                        });
+
+                    }
+
+                },'json');
+            });
+
+            //验证码点击事件
+            $("#changeCode,#codeImage").click(function () {
+                //改变验证码图片的地址
+                $.getJSON('/user/code?refresh',function (data) {
+
+                    //找到验证码图片地址从新赋值,只有开关类型(选中或未选中，禁用或未禁用)用prop,其他的全部用attr
+                    $("#codeImage").attr('src',data.url);
+                    console.dir(data);
+                });
+
+            });
+
+        });
+		function bindPhoneNum(){
+//		    alert(1111)
+            //ajax提交数据去后台请求验证码
+            $.getJSON('/user/send-sms?mobile='+$("#mobile").val(),function (data) {
+                console.dir(data);
+            });
+
+			//启用输入框
+			$('#captcha').prop('disabled',false);
+
+			var time=30;
+			var interval = setInterval(function(){
+				time--;
+				if(time<=0){
+					clearInterval(interval);
+					var html = '获取验证码';
+					$('#get_captcha').prop('disabled',false);
+				} else{
+					var html = time + ' 秒后再次获取';
+					$('#get_captcha').prop('disabled',true);
+				}
+				
+				$('#get_captcha').val(html);
+			},1000);
+		}		
+	</script>
+```
+## 再次声明这里需要用到一个软件
+
+```
+http://layer.layui.com/
+```
+## 明天做登录
+
+
+
+
+
+
 
 
