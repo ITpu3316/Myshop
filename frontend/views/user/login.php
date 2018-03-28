@@ -10,25 +10,11 @@
 	<link rel="stylesheet" href="/style/footer.css" type="text/css">
 </head>
 <body>
-	<!-- 顶部导航 start -->
-	<div class="topnav">
-		<div class="topnav_bd w990 bc">
-			<div class="topnav_left">
-				
-			</div>
-			<div class="topnav_right fr">
-				<ul>
-					<li>您好，欢迎来到京西！[<a href="login.html">登录</a>] [<a href="register.html">免费注册</a>] </li>
-					<li class="line">|</li>
-					<li>我的订单</li>
-					<li class="line">|</li>
-					<li>客户服务</li>
-
-				</ul>
-			</div>
-		</div>
-	</div>
-	<!-- 顶部导航 end -->
+<!-- 顶部导航 start -->
+<?php
+include Yii::getAlias('@app')."/views/common/nav.php";
+?>
+<!-- 顶部导航 end -->
 	
 	<div style="clear:both;"></div>
 
@@ -53,16 +39,16 @@
 					<ul>
 						<li>
 							<label for="">用户名：</label>
-							<input type="text" class="txt" name="User[username]" />
+							<input type="text" class="txt" name="User[username]" id="username"/>
 						</li>
 						<li>
 							<label for="">密码：</label>
-							<input type="password" class="txt" name="User[password]" />
+							<input type="password" class="txt" name="User[password]" id="password"/>
 							<a href="">忘记密码?</a>
 						</li>
 						<li class="checkcode">
 							<label for="">验证码：</label>
-							<input type="text"  name="User[checkde]" id="checkde" />
+							<input type="text"  name="User[checkCode]" id="checkCode" />
 							<img src="/user/code" alt=""  id="codeImage" />
 							<span>看不清？<a href="javascript:void(0)" id="changeCode">换一张</a></span>
 						</li>
@@ -95,7 +81,7 @@
 				<h3>还不是商城用户</h3>
 				<p>现在免费注册成为商城用户，便能立刻享受便宜又放心的购物乐趣，心动不如行动，赶紧加入吧!</p>
 
-				<a href="regist.html" class="reg_btn">免费注册 >></a>
+				<a href="/user/reg" class="reg_btn">免费注册 >></a>
 			</div>
 
 		</div>
@@ -139,34 +125,25 @@
                 //提交数据登录
                 $.post('/user/login',$("#log").serialize(),function (results) {
 //                    alert(1111);
-                    console.dir(results);
-                    //判断数据
-                    if (results.status==1){
+                    console.log(results.status);
+//                   判断数据
+                    if (results.status){
                         //提示信息
                         layer.msg(results.msg);
                         //跳转到登录界面
-                        window.location.href="/user/index";
-                    }
-                    if (results.status==0){
-                        layer.tips(results.msg, '#password', {
-                            tips: [2, '#0FA6D8'], //配置颜色
-                            tipsMore: true,
-                        });
-                    }
-                    if (results.status==-1){
-                        layer.tips(results.msg, '#username', {
-                            tips: [2, '#0FA6D8'], //配置颜色
-                            tipsMore: true,
-                        });
-                    }
-                    if(results.status==-2){
+                        window.location.href="/index/index";
+                    }else {
                         $.each(results.data,function (k,v) {
                             layer.tips(v[0], '#'+k, {
-                                tips: [2, '#0FA6D8'], //配置颜色
+                                tips: [2, '#0FA6D8'], //还可配置颜色
                                 tipsMore: true,
                             });
+//                            alert(v[0]);
+                            console.log(v[0]);
                         });
+
                     }
+
                 },'json');
 
             });
