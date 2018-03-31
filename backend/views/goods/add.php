@@ -17,8 +17,8 @@ echo  $form->field($model,'images')->widget('manks\FileInput', [
 ]);
 echo  $form->field($model,'goods_category_id')->dropDownList($cateArr,['prompt'=>'请选择.....']);
 echo  $form->field($model,'brand_id')->dropDownList($brandArr,['prompt'=>'请选择.....']);
-echo  $form->field($model,'market_price')->textInput(['value'=>6666]);
-echo  $form->field($model,'shop_price')->textInput(['value'=>6666]);
+echo  $form->field($model,'market_price')->textInput(['value'=>1]);
+echo  $form->field($model,'shop_price')->textInput(['value'=>1]);
 echo  $form->field($model,'stock')->textInput(['value'=>666]);
 echo  $form->field($model,'sort')->textInput(['value'=>100]);
 echo  $form->field($model,'status')->inline()->radioList(\backend\models\Goods::$ses);
