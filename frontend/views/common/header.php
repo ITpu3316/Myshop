@@ -113,7 +113,7 @@
                         <!--通过当前分类的ID找到对应的三级分类数据-->
                         <?php foreach (\backend\models\Category::find()->where(['parent_id'=>$v2->id])->all() as $k3=>$v3):?>
                             <dd>
-                                <a href="<?= \yii\helpers\Url::to(['list','id'=>$v3->id])?>"><?=$v2->name;?></a>
+                                <a href="<?= \yii\helpers\Url::to(['list','id'=>$v3->id])?>"><?=$v3->name;?></a>
                             </dd>
                         <?php endforeach;?>
                         </dl>
