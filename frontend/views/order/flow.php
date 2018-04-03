@@ -8,7 +8,6 @@
 	<link rel="stylesheet" href="/style/header.css" type="text/css">
 	<link rel="stylesheet" href="/style/success.css" type="text/css">
 	<link rel="stylesheet" href="/style/footer.css" type="text/css">
-    <meta http-equiv=refresh content=5;url='/index/index value="/biz/safemanage/enterpriseMain.jsp"/>
 </head>
 <body>
 	<!-- 顶部导航 start -->
@@ -43,7 +42,20 @@
 		</div>
 		<div class="success_bd">
 			<p><span></span>订单提交成功，我们将及时为您处理</p>
-            <font size=2><span id="jump">5</span>秒后自动跳转</font>
+            <p>
+                <?php
+                 switch ($order->pay_type_id){
+                     //支付宝
+                     case 1;
+                         break;
+                     //微信
+                     case 2:
+                         echo \yii\helpers\Html::img(['order/wx','id'=>$order->id]);
+                         break;
+                 }
+
+                ?>
+            </p>
 			<p class="message">完成支付后，你可以
                 <a href="">查看订单状态</a>
                 <a href="<?=\yii\helpers\Url::to('index/index')?>">继续购物</a>
@@ -51,14 +63,6 @@
             </p>
 		</div>
 	</div>
-    <script>
-        function countDown(secs){
-            jump.innerText=secs;
-            if(--secs>0)
-                setTimeout( "countDown(" +secs+ ")" ,1000);
-        }
-        countDown(5);
-    </script>
 
     <!--    <meta http-equiv="refresh" content="3;URL=http://www.baidu.com">-->
     <!-- 主体部分 end -->

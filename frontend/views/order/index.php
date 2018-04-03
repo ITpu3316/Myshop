@@ -93,8 +93,7 @@
                         <?php foreach ($pays as $ke=>$ve):?>
 						<tr class="<?=$ke?"":"cur"?>">
 							<td class="col1">
-                                <input type="radio" value="<?=$ve
-                                ->id?>" name="pay" <?=$ke==0?"checked":""?>/><?=$ve->pay_type?>
+                                <input type="radio" value="<?=$ve->id?>" name="pay" <?=$ke==0?"":"checked"?>/><?=$ve->pay_type?>
                             </td>
 							<td class="col2"><?=$ve->pay_detail?></td>
 						</tr>
@@ -185,17 +184,15 @@
         });
         //提交订单
         $("#sub_btn").click(function () {
-//            console.log(111111);
             //提交数据
             $.post('/order/add',$("form").serialize(),function (data) {
-                console.dir(data.status);
+//                console.dir(data.status);
                 //判断数据
                 if (data.status){
                     //提示信息
                     layer.msg(data.msg);
-//                  alert(data.msg);
                     //跳转到订单完成界面
-                    self.location.href="/order/add";
+                    self.location.href="/order/ok?id="+data.id;
                 }else {
                     $.each(data.data,function (k,v) {
                         layer.tips(v[0], '#'+k, {

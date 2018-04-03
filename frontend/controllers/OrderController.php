@@ -12,7 +12,10 @@ use frontend\models\PayType;
 use yii\db\Exception;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
+use yii\helpers\Url;
 use yii\web\Request;
+use EasyWeChat\Foundation\Application;
+use Endroid\QrCode\QrCode;
 
 class OrderController extends \yii\web\Controller
 {
@@ -57,6 +60,10 @@ class OrderController extends \yii\web\Controller
         return $this->render('index',compact('addresss','deliverys','pays','cart','goods','shopPrice','shopNum'));
     }
 
+    /**
+     * 订单生成
+     * @return string
+     */
     public function actionAdd(){
         //用户ID
         $user_id=\Yii::$app->user->id;
@@ -164,7 +171,8 @@ class OrderController extends \yii\web\Controller
 
                 return Json::encode([
                     'status'=>1,
-                    'msg'=>'订单提交成功'
+                    'msg'=>'订单提交成功',
+                    'id'=>$order->id,
                 ]);
 
             } catch(Exception $e) {
@@ -173,11 +181,112 @@ class OrderController extends \yii\web\Controller
 
                 return Json::encode([
                     'status'=>0,
-                    'msg'=>$e->getMessage()
+                    'msg'=>$e->getMessage(),
+                    'id'=>$order->id,
                 ]);
             }
         }
-        return $this->render('flow');
+    }
+
+    /**
+     * 生成订单二维码
+     * @param $id 订单ID
+     * @return string
+     */
+    public function actionOk($id)
+    {
+        //查出当前订单
+        $order = Order::findOne($id);
+        //载入视图
+        return $this->render('flow',compact('order'));
+
+    }
+
+    /**
+     * 订单二维码
+     * @param $id 订单ID
+     */
+    public function actionWx($id)
+    {
+        $order=Order::findOne($id);
+        //配置
+        $options=\Yii::$app->params['wx'];
+//        var_dump($options);exit();
+        //创建操作微信的对象
+        $app = new Application($options);
+
+        //能过$app得到支付对象
+        $payment = $app->payment;
+
+        $attributes = [
+            'trade_type'       => 'NATIVE', // JSAPI，NATIVE，APP...
+            'body'             => '今夕商城订单',
+            'detail'           => '商品详情',
+            'out_trade_no'     => $order->trade_no,//订单编号
+            'total_fee'        => 1, // 单位：分
+            'notify_url'       => Url::to(['order/notify'],true),
+            //异步通知路径
+            // 支付结果通知网址，如果不设置则会使用配置里的默认地址
+//            'openid'           => '当前用户的 openid', // trade_type=JSAPI，此参数必传，用户在商户appid下的唯一标识，
+            // ...
+        ];
+        $order = new \EasyWeChat\Payment\Order($attributes);
+
+        //同下订单
+        $result = $payment->prepare($order);
+//        var_dump($result);exit();
+        if ($result->return_code == 'SUCCESS' && $result->result_code == 'SUCCESS'){
+//            $prepayId = $result->prepay_id;
+            $qrCode = new QrCode($result->code_url);
+
+            header('Content-Type: ' . $qrCode->getContentType());
+            echo $qrCode->writeString();
+        } else {
+            var_dump($result);
+        }
+    }
+
+    /**
+     * 微信异步请求通知
+     * @return \Symfony\Component\HttpFoundation\Response
+     */
+    public function actionNotify()
+    {
+        //配置
+        $options=\Yii::$app->params['wx'];
+//        var_dump($options);exit();
+        //创建操作微信的对象
+        $app = new Application($options);
+        $response = $app->payment->handleNotify(function($notify, $successful){
+            // 使用通知里的 "微信支付订单号" 或者 "商户订单号" 去自己的数据库找到订单
+//            $order = 查询订单($notify->out_trade_no);
+
+            //通过订单号'trade_no'=>$notify->out_trade_no把订单找出来
+            $order=Order::findOne(['trade_no'=>$notify->out_trade_no]);
+            if (!$order) { // 如果订单不存在
+                return '支付失败'; // 告诉微信，我已经处理完了，订单没找到，别再通知我了
+            }
+
+            // 如果订单存在
+            // 检查订单是否已经更新过支付状态
+            if ($order->status!=1) { // 假设订单字段“支付时间”不为空代表已经支付
+                return true; // 已经支付成功了就不再更新了
+            }
+
+            // 用户是否支付成功
+            if ($successful) {
+                // 不是已经支付状态则修改为已经支付状态
+//                $order->paid_at = time(); // 更新支付时间为当前时间
+                $order->status = 2;//  1:待支付2：待发货
+            } else { // 用户支付失败
+                $order->status = 'paid_fail';
+            }
+
+            $order->save(); // 保存订单
+
+            return true; // 返回处理完成
+        });
+        return $response;
     }
 
 }
